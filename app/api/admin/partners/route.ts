@@ -58,13 +58,24 @@ export async function POST(request: Request) {
       );
     }
 
-    // 3. Partner
+        // Generar slug simple
+    const slug =
+      company_name
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '') +
+      '-' +
+      Date.now().toString(36);
+
+    // 3. Partner (columnas reales)
     const { error: partnerError } = await supabaseAdmin.from('partners').insert({
-      user_id: userId,
-      company_name,
-      phone: phone || null,
-      country: country || 'ES',
-      status: 'active',
+      name: company_name,
+      slug,
+      owner_profile_id: userId,
+      country_code: (country || 'ES').slice(0, 2).toUpperCase(),
+      is_active: true,
     });
 
     if (partnerError) {
