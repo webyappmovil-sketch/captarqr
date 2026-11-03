@@ -39,9 +39,21 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/q/') ||
     pathname.startsWith('/auth/')
   ) {
-    // Si ya está logueado y va a login, mandarlo al admin
+       // Si ya está logueado y va a login/register, redirigir según rol
     if (user && (pathname === '/login' || pathname === '/register')) {
-      return NextResponse.redirect(new URL('/admin', request.url));
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      const role = profile?.role;
+      let dest = '/business';
+      if (role === 'super_admin') dest = '/admin';
+      else if (role === 'partner') dest = '/partner';
+      else if (role === 'seller') dest = '/seller';
+
+      return NextResponse.redirect(new URL(dest, request.url));
     }
     return response;
   }
