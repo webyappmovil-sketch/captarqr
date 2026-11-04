@@ -1,73 +1,74 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { z } from 'zod';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-
-const loginSchema = z.object({
-  email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'Mínimo 6 caracteres'),
-});
-
-type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
-  });
-
-  const onSubmit = async (data: LoginFormData) => {
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
     setLoading(true);
-    setError(null);
 
     const supabase = createClient();
 
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email: data.email,
-      password: data.password,
-    });
+    try {
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
 
-    if (authError) {
-      setError('Credenciales incorrectas');
+      if (authError) {
+        setError(authError.message);
+        return;
+      }
+
+      if (!data.user) {
+        setError('No se pudo iniciar sesión');
+        return;
+      }
+
+      // Leer rol (si falla, no bloqueamos el login)
+      let role = 'partner';
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', data.user.id)
+          .single();
+
+        if (profile?.role) {
+          role = profile.role;
+        }
+      } catch {
+        // ignorar
+      }
+
+      if (role === 'super_admin') {
+        router.push('/admin');
+      } else if (role === 'partner') {
+        router.push('/partner');
+      } else if (role === 'seller') {
+        router.push('/seller');
+      } else {
+        router.push('/business');
+      }
+      router.refresh();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error de login');
+    } finally {
       setLoading(false);
-      return;
     }
-
-        // Obtener rol y redirigir
-const { data: profile } = await supabase
-  .from('profiles')
-  .select('role')
-  .eq('id', data.user.id)
-  .single();
-
-const role = profile?.role || 'business_owner';
-
-if (role === 'super_admin') {
-  router.push('/admin');
-} else if (role === 'partner') {
-  router.push('/partner');
-} else if (role === 'seller') {
-  router.push('/seller');
-} else {
-  router.push('/business');
-}
-router.refresh();
-  };
+  }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+    <form onSubmit={handleSubmit} className="space-y-5">
       {error && (
         <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-3 rounded-lg text-sm">
           {error}
@@ -80,13 +81,13 @@ router.refresh();
         </label>
         <input
           type="email"
-          {...register('email')}
-          className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#25D366] focus:border-transparent text-white"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          autoComplete="email"
+          className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#25D366]/50"
           placeholder="tu@email.com"
         />
-        {errors.email && (
-          <p className="mt-1 text-sm text-red-400">{errors.email.message}</p>
-        )}
       </div>
 
       <div>
@@ -95,19 +96,19 @@ router.refresh();
         </label>
         <input
           type="password"
-          {...register('password')}
-          className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#25D366] focus:border-transparent text-white"
+          required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="current-password"
+          className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2.5 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#25D366]/50"
           placeholder="••••••••"
         />
-        {errors.password && (
-          <p className="mt-1 text-sm text-red-400">{errors.password.message}</p>
-        )}
       </div>
 
       <button
         type="submit"
         disabled={loading}
-        className="w-full bg-[#25D366] hover:bg-[#20bd5a] text-black font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full bg-[#25D366] hover:bg-[#20bd5a] disabled:opacity-60 text-black font-semibold py-2.5 rounded-lg transition"
       >
         {loading ? 'Entrando...' : 'Iniciar sesión'}
       </button>
