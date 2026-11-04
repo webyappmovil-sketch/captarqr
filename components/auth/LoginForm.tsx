@@ -45,8 +45,25 @@ export default function LoginForm() {
       return;
     }
 
-        router.push('/admin');
-    router.refresh();
+        // Obtener rol y redirigir
+const { data: profile } = await supabase
+  .from('profiles')
+  .select('role')
+  .eq('id', data.user.id)
+  .single();
+
+const role = profile?.role || 'business_owner';
+
+if (role === 'super_admin') {
+  router.push('/admin');
+} else if (role === 'partner') {
+  router.push('/partner');
+} else if (role === 'seller') {
+  router.push('/seller');
+} else {
+  router.push('/business');
+}
+router.refresh();
   };
 
   return (

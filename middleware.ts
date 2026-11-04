@@ -31,7 +31,9 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  // Rutas públicas
+      const { pathname } = request.nextUrl;
+
+  // Rutas públicas: no redirigir, el LoginForm decide el destino
   if (
     pathname === '/' ||
     pathname.startsWith('/login') ||
@@ -39,23 +41,17 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/q/') ||
     pathname.startsWith('/auth/')
   ) {
-       // Si ya está logueado y va a login/register, redirigir según rol
-    if (user && (pathname === '/login' || pathname === '/register')) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-      const role = profile?.role;
-      let dest = '/business';
-      if (role === 'super_admin') dest = '/admin';
-      else if (role === 'partner') dest = '/partner';
-      else if (role === 'seller') dest = '/seller';
-
-      return NextResponse.redirect(new URL(dest, request.url));
-    }
     return response;
+  }
+
+  // Si no hay usuario, a login
+  if (!user) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    return NextResponse.redirect(url);
+  }
+
+  return response;
   }
 
   // Si no hay usuario, a login
