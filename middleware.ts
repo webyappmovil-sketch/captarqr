@@ -12,10 +12,8 @@ export async function middleware(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
+        setAll(cookiesToSet: { name: string; value: string; options?: Record<string, unknown> }[]) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           response = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options)
@@ -31,9 +29,6 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-      const { pathname } = request.nextUrl;
-
-  // Rutas públicas: no redirigir, el LoginForm decide el destino
   if (
     pathname === '/' ||
     pathname.startsWith('/login') ||
@@ -44,17 +39,6 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // Si no hay usuario, a login
-  if (!user) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/login';
-    return NextResponse.redirect(url);
-  }
-
-  return response;
-  }
-
-  // Si no hay usuario, a login
   if (!user) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
