@@ -28,16 +28,20 @@ export async function POST(request: Request) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    const { error } = await supabase.from('leads').insert({
-      business_id,
-      first_name,
-      last_name,
-      whatsapp_country_code: phonePrefix.slice(0, 4),
-      whatsapp_number,
-      privacy_accepted: true,
-      country_code: cc,
-      source_qr_id: qr_id || null,
-    });
+    const { data: lead, error } = await supabase
+      .from('leads')
+      .insert({
+        business_id,
+        first_name,
+        last_name,
+        whatsapp_country_code: phonePrefix.slice(0, 4),
+        whatsapp_number,
+        privacy_accepted: true,
+        country_code: cc,
+        source_qr_id: qr_id || null,
+      })
+      .select('id')
+      .single();
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
@@ -57,7 +61,7 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, lead_id: lead?.id });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Error interno';
     return NextResponse.json({ error: message }, { status: 500 });
