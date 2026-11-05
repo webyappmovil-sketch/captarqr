@@ -21,6 +21,7 @@ export async function POST(request: Request) {
       }
     );
 
+    // 1. Usuario Auth
     const { data: authData, error: authError } =
       await supabaseAdmin.auth.admin.createUser({
         email,
@@ -38,6 +39,7 @@ export async function POST(request: Request) {
 
     const userId = authData.user.id;
 
+    // 2. Perfil
     const { error: profileError } = await supabaseAdmin.from('profiles').upsert({
       id: userId,
       email,
@@ -50,12 +52,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: profileError.message }, { status: 400 });
     }
 
+    // 3. Partner activo (CONTAPLUS)
     const { data: partner } = await supabaseAdmin
       .from('partners')
       .select('id')
       .eq('is_active', true)
       .limit(1)
       .maybeSingle();
+
+    if (!partner?.id) {
+      return NextResponse.json(
+        { error: 'No hay partner activo para asignar el negocio' },
+        { status: 400 }
+      );
+    }
 
     const slug =
       business_name
@@ -67,24 +77,19 @@ export async function POST(request: Request) {
       '-' +
       Date.now().toString(36);
 
-    const insertPayload: Record<string, unknown> = {
-      name: business_name,
-      slug,
-      owner_profile_id: userId,
-      is_active: true,
-      country_code: (country || 'ES').slice(0, 2).toUpperCase(),
-    };
-
-    if (partner?.id) {
-      insertPayload.partner_id = partner.id;
-    }
-    if (phone) {
-      insertPayload.phone = phone;
-    }
-
+    // 4. Negocio (columnas reales de tu tabla)
     const { data: business, error: businessError } = await supabaseAdmin
       .from('businesses')
-      .insert(insertPayload)
+      .insert({
+        name: business_name,
+        slug,
+        partner_id: partner.id,
+        owner_profile_id: userId,
+        email,
+        phone: phone || null,
+        country_code: (country || 'ES').slice(0, 2).toUpperCase(),
+        status: 'active',
+      })
       .select('id')
       .single();
 
