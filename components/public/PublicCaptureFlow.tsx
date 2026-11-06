@@ -19,31 +19,38 @@ const COLORS = [
 function validateMobileWhatsApp(raw: string): string | null {
   const digits = raw.replace(/\D/g, '');
 
-  if (digits.startsWith('34') && digits.length === 11) {
-    const local = digits.slice(2);
-    if (/^[67]\d{8}$/.test(local)) return null;
-    return 'En España solo se admiten móviles (6xx/7xx), no fijos';
-  }
+  // España: 9 dígitos 6/7… o 34 + 9 dígitos 6/7…
   if (digits.length === 9 && /^[67]\d{8}$/.test(digits)) return null;
+  if (digits.startsWith('34') && digits.length === 11 && /^34[67]\d{8}$/.test(digits)) {
+    return null;
+  }
 
+  // México 52 + 10 dígitos
   if (digits.startsWith('52') && digits.length === 12) return null;
-  if (digits.length === 10 && /^[1-9]\d{9}$/.test(digits)) return null;
 
+  // Colombia 57 + 10 dígitos (móvil 3…)
   if (digits.startsWith('57') && digits.length === 12 && digits[2] === '3') return null;
-  if (digits.length === 10 && /^3\d{9}$/.test(digits)) return null;
 
+  // Argentina 54 + 10/11
   if (digits.startsWith('54') && (digits.length === 12 || digits.length === 13)) return null;
+
+  // Chile 56 + 9 (9…)
   if (digits.startsWith('56') && digits.length === 11 && digits[2] === '9') return null;
-  if (digits.length === 9 && /^9\d{8}$/.test(digits)) return null;
+
+  // Perú 51 + 9 (9…)
   if (digits.startsWith('51') && digits.length === 11 && digits[2] === '9') return null;
+
+  // Ecuador 593 + 9 (9…)
   if (digits.startsWith('593') && digits.length === 12 && digits[3] === '9') return null;
+
+  // Venezuela, Uruguay, Paraguay, Bolivia, Centroamérica
   if (digits.startsWith('58') && digits.length === 12) return null;
   if (digits.startsWith('598') && digits.length === 11) return null;
   if (digits.startsWith('595') && digits.length === 12) return null;
   if (digits.startsWith('591') && digits.length === 11) return null;
   if (/^50[2-7]\d{8}$/.test(digits)) return null;
 
-  return 'Introduce un móvil WhatsApp de España o Latinoamérica (no números fijos)';
+  return 'WhatsApp no válido. España: 6XX/7XX. Latinoamérica: con prefijo (52, 57, 54…). Se comprobará antes de canjear el premio.';
 }
 
 export default function PublicCaptureFlow({
@@ -72,7 +79,9 @@ export default function PublicCaptureFlow({
   const [form, setForm] = useState({ full_name: '', email: '', phone: '' });
 
   const segments = useMemo(() => {
-    if (prizes.length === 0) return [{ id: '', name: 'Sin premios', color: '#94a3b8' }];
+    if (prizes.length === 0) {
+      return [{ id: '', name: 'Sin premios', color: '#94a3b8' }];
+    }
     return prizes.map((p, i) => ({
       id: p.id,
       name: p.name,
@@ -103,42 +112,11 @@ export default function PublicCaptureFlow({
       return;
     }
 
-    const phoneError = 
-function validateMobileWhatsApp(raw: string): string | null {
-  const digits = raw.replace(/\D/g, '');
-
-  // España: 9 dígitos 6/7… o 34 + 9 dígitos 6/7…
-  if (digits.length === 9 && /^[67]\d{8}$/.test(digits)) return null;
-  if (digits.startsWith('34') && digits.length === 11 && /^34[67]\d{8}$/.test(digits))
-    return null;
-
-  // México 52 + 10 dígitos
-  if (digits.startsWith('52') && digits.length === 12) return null;
-
-  // Colombia 57 + 10 dígitos (móvil 3…)
-  if (digits.startsWith('57') && digits.length === 12 && digits[2] === '3') return null;
-
-  // Argentina 54 + 10/11
-  if (digits.startsWith('54') && (digits.length === 12 || digits.length === 13)) return null;
-
-  // Chile 56 + 9 (9…)
-  if (digits.startsWith('56') && digits.length === 11 && digits[2] === '9') return null;
-
-  // Perú 51 + 9 (9…)
-  if (digits.startsWith('51') && digits.length === 11 && digits[2] === '9') return null;
-
-  // Ecuador 593 + 9 (9…)
-  if (digits.startsWith('593') && digits.length === 12 && digits[3] === '9') return null;
-
-  // Venezuela, Uruguay, Paraguay, Bolivia, Centroamérica
-  if (digits.startsWith('58') && digits.length === 12) return null;
-  if (digits.startsWith('598') && digits.length === 11) return null;
-  if (digits.startsWith('595') && digits.length === 12) return null;
-  if (digits.startsWith('591') && digits.length === 11) return null;
-  if (/^50[2-7]\d{8}$/.test(digits)) return null;
-
-  return 'WhatsApp no válido. España: 6XX/7XX. Latinoamérica: con prefijo (52, 57, 54…). Se comprobará antes de canjear el premio.';
-}
+    const phoneError = validateMobileWhatsApp(form.phone);
+    if (phoneError) {
+      setError(phoneError);
+      setLoading(false);
+      return;
     }
 
     try {
@@ -279,10 +257,7 @@ function validateMobileWhatsApp(raw: string): string | null {
               required
               placeholder="Nombre"
               value={form.full_name}
-              onChange={(e) => {
-  setPrivacy(e.target.checked);
-  setError('');
-}}
+              onChange={(e) => update('full_name', e.target.value)}
               className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-gray-900"
             />
             <input
@@ -300,15 +275,19 @@ function validateMobileWhatsApp(raw: string): string | null {
               onChange={(e) => update('phone', e.target.value)}
               className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-gray-900"
             />
-            <p className="text-xs text-gray-400">
-              Solo móviles WhatsApp de España o Latinoamérica (no fijos)
+            <p className="text-xs text-gray-500">
+              Solo WhatsApp válidos (España 6xx/7xx o LatAm con prefijo). Se comprobará antes de
+              canjear tu premio.
             </p>
 
             <label className="flex items-start gap-2 text-left text-sm text-gray-700 cursor-pointer">
               <input
                 type="checkbox"
                 checked={privacy}
-                onChange={(e) => setPrivacy(e.target.checked)}
+                onChange={(e) => {
+                  setPrivacy(e.target.checked);
+                  setError('');
+                }}
                 className="mt-1 h-4 w-4 rounded border-gray-300"
               />
               <span>
@@ -387,9 +366,7 @@ function validateMobileWhatsApp(raw: string): string | null {
         )}
       </div>
 
-      <p className="text-xs text-gray-500">
-  Solo WhatsApp válidos (España 6xx/7xx o LatAm con prefijo). Se comprobará antes de canjear tu premio.
-</p>
+      <p className="text-center text-xs text-gray-400 mt-4">CAPTARQR · Captación inteligente</p>
     </div>
   );
 }
