@@ -131,8 +131,22 @@ export default function PublicCaptureFlow({
           privacy_accepted: true,
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al enviar');
+
+      const text = await res.text();
+      let data: { error?: string; lead_id?: string } = {};
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        throw new Error('Respuesta inválida del servidor. Inténtalo de nuevo.');
+      }
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Error al enviar');
+      }
+      if (!data.lead_id) {
+        throw new Error('No se pudo crear la participación');
+      }
+
       setLeadId(data.lead_id);
       setStep('spin');
     } catch (err: unknown) {
