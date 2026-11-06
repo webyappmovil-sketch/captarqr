@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import RouletteEditor from '@/components/business/RouletteEditor';
+import RouletteSettings from '@/components/business/RouletteSettings';
 
 function prizeTitle(title: unknown): string {
   if (!title) return '';
@@ -36,11 +37,15 @@ export default async function BusinessRoulettePage() {
 
   const { data: prizes } = await supabase
     .from('roulette_prizes')
-    .select(
-      'id, title, probability, daily_limit, total_limit, is_active, sort_order'
-    )
+    .select('id, title, probability, daily_limit, total_limit, is_active, sort_order')
     .eq('business_id', business.id)
     .order('sort_order', { ascending: true });
+
+  const { data: config } = await supabase
+    .from('roulette_configs')
+    .select('play_frequency, redeem_window, is_active, max_spins_per_person')
+    .eq('business_id', business.id)
+    .maybeSingle();
 
   const initial = (prizes || []).map((p, i) => ({
     id: p.id as string,
@@ -52,13 +57,19 @@ export default async function BusinessRoulettePage() {
   }));
 
   return (
-    <div>
-      <div className="mb-6">
+    <div className="space-y-8">
+      <div>
         <h2 className="text-2xl font-bold text-white">Ruleta</h2>
         <p className="text-gray-400 text-sm">
-          Configura las casillas y probabilidades · {business.name}
+          Configura casillas, frecuencia y canje · {business.name}
         </p>
       </div>
+
+      <RouletteSettings
+        initialFrequency={config?.play_frequency || 'once'}
+        initialRedeem={config?.redeem_window || 'same_day'}
+      />
+
       <RouletteEditor initialPrizes={initial} />
     </div>
   );

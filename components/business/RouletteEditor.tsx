@@ -6,16 +6,16 @@ import { useRouter } from 'next/navigation';
 type PrizeRow = {
   id?: string;
   title: string;
-  probability: number;
-  daily_limit: number | null;
+  probability: string;
+  daily_limit: string;
   is_active: boolean;
   sort_order: number;
 };
 
 const EMPTY_ROWS: PrizeRow[] = Array.from({ length: 6 }).map((_, i) => ({
   title: i === 5 ? 'Sigue participando' : '',
-  probability: i === 5 ? 50 : 10,
-  daily_limit: i === 5 ? null : 5,
+  probability: i === 5 ? '50' : '10',
+  daily_limit: i === 5 ? '' : '5',
   is_active: true,
   sort_order: i,
 }));
@@ -23,33 +23,47 @@ const EMPTY_ROWS: PrizeRow[] = Array.from({ length: 6 }).map((_, i) => ({
 export default function RouletteEditor({
   initialPrizes,
 }: {
-  initialPrizes: PrizeRow[];
+  initialPrizes: {
+    id?: string;
+    title: string;
+    probability: number;
+    daily_limit: number | null;
+    is_active: boolean;
+    sort_order: number;
+  }[];
 }) {
   const router = useRouter();
   const [rows, setRows] = useState<PrizeRow[]>(() => {
     if (!initialPrizes.length) return EMPTY_ROWS;
-    const filled = [...initialPrizes];
+    const filled = initialPrizes.map((p, i) => ({
+      id: p.id,
+      title: p.title,
+      probability: String(p.probability ?? 0),
+      daily_limit: p.daily_limit == null ? '' : String(p.daily_limit),
+      is_active: p.is_active !== false,
+      sort_order: p.sort_order ?? i,
+    }));
     while (filled.length < 6) {
       filled.push({
         title: '',
-        probability: 0,
-        daily_limit: 5,
+        probability: '0',
+        daily_limit: '5',
         is_active: true,
         sort_order: filled.length,
       });
     }
-    return filled.slice(0, 8); // máximo 8 casillas
+    return filled.slice(0, 8);
   });
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
   const totalProb = useMemo(
-    () => rows.reduce((s, r) => s + (Number(r.probability) || 0), 0),
+    () => rows.reduce((s, r) => s + (parseFloat(r.probability) || 0), 0),
     [rows]
   );
 
-  function updateRow(index: number, field: keyof PrizeRow, value: string | number | boolean | null) {
+  function updateRow(index: number, field: keyof PrizeRow, value: string | boolean) {
     setRows((prev) =>
       prev.map((r, i) => (i === index ? { ...r, [field]: value } : r))
     );
@@ -61,8 +75,8 @@ export default function RouletteEditor({
       ...prev,
       {
         title: '',
-        probability: 0,
-        daily_limit: 5,
+        probability: '0',
+        daily_limit: '5',
         is_active: true,
         sort_order: prev.length,
       },
@@ -80,12 +94,12 @@ export default function RouletteEditor({
     setError('');
     setMessage('');
 
-        const cleaned = rows
+    const cleaned = rows
       .map((r, i) => ({
         id: r.id,
         title: r.title.trim(),
-        probability: Number(r.probability) || 0,
-        daily_limit: r.daily_limit,
+        probability: parseFloat(r.probability) || 0,
+        daily_limit: r.daily_limit.trim() === '' ? null : Number(r.daily_limit),
         is_active: r.is_active,
         sort_order: i,
       }))
@@ -135,7 +149,7 @@ export default function RouletteEditor({
         <div className="divide-y divide-gray-800">
           {rows.map((row, index) => (
             <div
-              key={index}
+              key={row.id || index}
               className="grid grid-cols-1 sm:grid-cols-12 gap-2 px-4 py-3 items-center"
             >
               <div className="sm:col-span-4">
@@ -157,30 +171,18 @@ export default function RouletteEditor({
               </div>
               <div className="sm:col-span-2">
                 <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  step={0.01}
+                  inputMode="decimal"
                   value={row.probability}
-                  onChange={(e) =>
-                    updateRow(index, 'probability', Number(e.target.value))
-                  }
+                  onChange={(e) => updateRow(index, 'probability', e.target.value)}
                   className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-white text-sm"
                 />
               </div>
               <div className="sm:col-span-2">
                 <input
-                  type="number"
-                  min={0}
+                  inputMode="numeric"
                   placeholder="∞"
-                  value={row.daily_limit ?? ''}
-                  onChange={(e) =>
-                    updateRow(
-                      index,
-                      'daily_limit',
-                      e.target.value === '' ? null : Number(e.target.value)
-                    )
-                  }
+                  value={row.daily_limit}
+                  onChange={(e) => updateRow(index, 'daily_limit', e.target.value)}
                   className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-white text-sm"
                 />
               </div>
@@ -202,16 +204,12 @@ export default function RouletteEditor({
         <div className="text-sm">
           <span
             className={
-              Math.abs(totalProb - 100) < 0.01
-                ? 'text-green-400'
-                : 'text-amber-400'
+              Math.abs(totalProb - 100) < 0.01 ? 'text-green-400' : 'text-amber-400'
             }
           >
             Suma: {totalProb.toFixed(1)} %
           </span>
-          <span className="text-gray-500 ml-2">
-            (recomendado 100 %)
-          </span>
+          <span className="text-gray-500 ml-2">(recomendado 100 %)</span>
         </div>
         <div className="flex gap-2">
           <button
@@ -241,11 +239,6 @@ export default function RouletteEditor({
           {message}
         </p>
       )}
-
-      <p className="text-xs text-gray-500">
-        Las casillas activas aparecen en la ruleta pública. La probabilidad relativa decide el
-        premio al girar.
-      </p>
     </form>
   );
 }
