@@ -146,4 +146,158 @@ export default function PublicCaptureFlow({
             }}
           >
             {segments.map((s, i) => {
-              const 
+              const angle = ((i + 0.5) / segments.length) * 360;
+              return (
+                <div
+                  key={i}
+                  className="absolute inset-0 flex items-center justify-center"
+                  style={{ transform: `rotate(${angle}deg)` }}
+                >
+                  <span
+                    className="text-[10px] sm:text-xs font-bold text-white text-center leading-tight drop-shadow"
+                    style={{
+                      transform: 'translateY(-78px)',
+                      width: 70,
+                    }}
+                  >
+                    {s.name}
+                  </span>
+                </div>
+              );
+            })}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-10 h-10 rounded-full bg-white border-2 border-gray-300" />
+            </div>
+          </div>
+        </div>
+
+        {step === 'intro' && (
+          <div className="text-center space-y-3">
+            <p className="text-gray-800 font-semibold">
+              ¿Quieres jugar a la ruleta y ganar premios?
+            </p>
+            <p className="text-gray-500 text-sm">
+              Rellena tus datos y participa.
+            </p>
+            <button
+              type="button"
+              onClick={() => setStep('form')}
+              className="w-full bg-[#22c55e] hover:bg-[#16a34a] text-white font-semibold py-3 rounded-xl"
+            >
+              Quiero jugar
+            </button>
+          </div>
+        )}
+
+        {step === 'form' && (
+          <form onSubmit={submitForm} className="space-y-3">
+            <p className="text-center text-gray-700 font-medium text-sm mb-1">
+              Completa tus datos para girar
+            </p>
+            <input
+              required
+              placeholder="Nombre"
+              value={form.full_name}
+              onChange={(e) => update('full_name', e.target.value)}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-gray-900"
+            />
+            <input
+              type="email"
+              placeholder="Email (opcional)"
+              value={form.email}
+              onChange={(e) => update('email', e.target.value)}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-gray-900"
+            />
+            <input
+              required
+              placeholder="WhatsApp / Teléfono"
+              value={form.phone}
+              onChange={(e) => update('phone', e.target.value)}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-gray-900"
+            />
+            {error && (
+              <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">
+                {error}
+              </p>
+            )}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-[#22c55e] hover:bg-[#16a34a] disabled:opacity-50 text-white font-semibold py-3 rounded-xl"
+            >
+              {loading ? 'Enviando...' : 'Participar y girar'}
+            </button>
+          </form>
+        )}
+
+        {step === 'spin' && !result && (
+          <div className="text-center space-y-3">
+            <p className="text-gray-700 text-sm">¡Listo! Gira la ruleta</p>
+            {error && (
+              <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">
+                {error}
+              </p>
+            )}
+            <button
+              type="button"
+              onClick={handleSpin}
+              disabled={loading || spinning}
+              className="w-full bg-[#22c55e] hover:bg-[#16a34a] disabled:opacity-50 text-white font-semibold py-3 rounded-xl"
+            >
+              {loading || spinning ? 'Girando...' : 'Girar ruleta'}
+            </button>
+          </div>
+        )}
+
+        {step === 'result' && result && (
+          <div className="space-y-4">
+            <div className="text-center">
+              <p className="text-gray-500 text-sm">Has obtenido</p>
+              <p className="text-xl font-bold text-[#16a34a] mt-1">
+                {result.prize_name}
+              </p>
+              {result.code && (
+                <p className="text-sm text-gray-700 mt-2">
+                  Código:{' '}
+                  <span className="font-mono font-semibold">{result.code}</span>
+                </p>
+              )}
+              <p className="text-xs text-gray-400 mt-2">
+                Muéstralo en el local para canjearlo
+              </p>
+            </div>
+
+            <div className="border-t border-gray-100 pt-4">
+              <p className="text-center text-gray-800 font-semibold text-sm mb-3">
+                ¿Ahora quieres continuar con…?
+              </p>
+              {links.length === 0 ? (
+                <p className="text-center text-gray-400 text-sm">
+                  El negocio aún no ha configurado enlaces.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {links.map((l) => (
+                    <a
+                      key={l.url + l.label}
+                      href={l.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block w-full text-center bg-gray-900 hover:bg-gray-800 text-white font-medium py-2.5 rounded-xl text-sm"
+                    >
+                      {l.label}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <p className="text-center text-xs text-gray-400 mt-4">
+        CAPTARQR · Captación inteligente
+      </p>
+    </div>
+  );
+}
