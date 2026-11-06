@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import DeleteLinkButton from '@/components/business/DeleteLinkButton';
 
 function linkTitle(title: unknown): string {
   if (!title) return 'Sin título';
@@ -26,10 +27,19 @@ export default async function BusinessLinksPage() {
     .limit(1)
     .maybeSingle();
 
+  const { data: qrs } = business
+    ? await supabase
+        .from('qr_codes')
+        .select('id, name')
+        .eq('business_id', business.id)
+    : { data: [] };
+
+  const qrMap = new Map((qrs || []).map((q) => [q.id, q.name]));
+
   const { data: links } = business
     ? await supabase
         .from('links')
-        .select('id, title, url, type, is_active, sort_order, click_count')
+        .select('id, title, url, type, is_active, sort_order, click_count, qr_id')
         .eq('business_id', business.id)
         .order('sort_order', { ascending: true })
     : { data: [] };
@@ -40,7 +50,7 @@ export default async function BusinessLinksPage() {
         <div>
           <h2 className="text-2xl font-bold text-white">Enlaces</h2>
           <p className="text-gray-400 text-sm">
-            Botones que verá el cliente tras la ruleta · {business?.name}
+            Botones tras la ruleta · {business?.name}
           </p>
         </div>
         <Link
@@ -53,7 +63,7 @@ export default async function BusinessLinksPage() {
 
       {!links || links.length === 0 ? (
         <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-8 text-center text-gray-400">
-          Aún no hay enlaces. Crea Web, WhatsApp, Carta, etc.
+          Aún no hay enlaces.
         </div>
       ) : (
         <div className="bg-gray-900/50 border border-gray-800 rounded-xl divide-y divide-gray-800">
@@ -66,18 +76,23 @@ export default async function BusinessLinksPage() {
                 <p className="text-white font-medium">{linkTitle(l.title)}</p>
                 <p className="text-gray-500 text-sm truncate">{l.url}</p>
                 <p className="text-gray-600 text-xs mt-1">
-                  Tipo: {l.type || '—'} · Clics: {l.click_count ?? 0}
+                  Tipo: {l.type || '—'} · QR:{' '}
+                  {l.qr_id ? qrMap.get(l.qr_id) || 'QR eliminado' : 'Todos los QR'} ·
+                  Clics: {l.click_count ?? 0}
                 </p>
               </div>
-              <span
-                className={`text-xs px-2.5 py-1 rounded-full shrink-0 ${
-                  l.is_active
-                    ? 'bg-green-500/15 text-green-400'
-                    : 'bg-gray-500/15 text-gray-400'
-                }`}
-              >
-                {l.is_active ? 'Activo' : 'Inactivo'}
-              </span>
+              <div className="flex items-center gap-3 shrink-0">
+                <span
+                  className={`text-xs px-2.5 py-1 rounded-full ${
+                    l.is_active
+                      ? 'bg-green-500/15 text-green-400'
+                      : 'bg-gray-500/15 text-gray-400'
+                  }`}
+                >
+                  {l.is_active ? 'Activo' : 'Inactivo'}
+                </span>
+                <DeleteLinkButton id={l.id} />
+              </div>
             </div>
           ))}
         </div>

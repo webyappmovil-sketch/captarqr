@@ -1,18 +1,29 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+
+type QrOption = { id: string; name: string };
 
 export default function NewLinkPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [qrs, setQrs] = useState<QrOption[]>([]);
   const [form, setForm] = useState({
     title: '',
     url: '',
     type: 'web',
+    qr_id: '',
   });
+
+  useEffect(() => {
+    fetch('/api/business/qr-list')
+      .then((r) => r.json())
+      .then((d) => setQrs(d.qrs || []))
+      .catch(() => setQrs([]));
+  }, []);
 
   function update(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -85,6 +96,24 @@ export default function NewLinkPage() {
             <option value="maps">Google Maps</option>
             <option value="other">Otro</option>
           </select>
+        </div>
+        <div>
+          <label className="block text-sm text-gray-300 mb-1">Código QR</label>
+          <select
+            value={form.qr_id}
+            onChange={(e) => update('qr_id', e.target.value)}
+            className="w-full rounded-lg bg-gray-800 border border-gray-700 px-3 py-2 text-white"
+          >
+            <option value="">Todos los QR del negocio</option>
+            {qrs.map((q) => (
+              <option key={q.id} value={q.id}>
+                {q.name}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-gray-500 mt-1">
+            Si eliges un QR, el enlace solo aparece en esa landing.
+          </p>
         </div>
 
         {error && (

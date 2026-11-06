@@ -1,13 +1,13 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import DeleteQrButton from '@/components/business/DeleteQrButton';
 
 export default async function BusinessQrPage() {
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
   if (!user) redirect('/login');
 
   const { data: business } = await supabase
@@ -68,7 +68,7 @@ export default async function BusinessQrPage() {
                     Escaneos: {qr.scan_count ?? 0}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   <a
                     href={publicUrl}
                     target="_blank"
@@ -86,6 +86,7 @@ export default async function BusinessQrPage() {
                   >
                     {qr.is_active ? 'Activo' : 'Inactivo'}
                   </span>
+                  <DeleteQrButton id={qr.id} />
                 </div>
               </div>
             );
