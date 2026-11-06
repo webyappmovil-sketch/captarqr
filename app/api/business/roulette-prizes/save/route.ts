@@ -2,16 +2,22 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createClient as createServerClient } from '@/lib/supabase/server';
 
+type PrizeInput = {
+  id?: string;
+  title: string;
+  probability: number;
+  daily_limit: number | null;
+  is_active: boolean;
+  sort_order: number;
+};
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const prizes = Array.isArray(body.prizes) ? body.prizes : [];
+    const prizes: PrizeInput[] = Array.isArray(body.prizes) ? body.prizes : [];
 
     if (prizes.length < 2) {
-      return NextResponse.json(
-        { error: 'Mínimo 2 premios' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Mínimo 2 premios' }, { status: 400 });
     }
 
     const supabase = await createServerClient();
@@ -39,40 +45,62 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Sin negocio' }, { status: 400 });
     }
 
-    // Borrar premios actuales del negocio y recrear (editor simple)
-    const { error: delError } = await admin
+    const { data: existing } = await admin
       .from('roulette_prizes')
-      .delete()
+      .select('id')
       .eq('business_id', business.id);
 
-    if (delError) {
-      return NextResponse.json({ error: delError.message }, { status: 400 });
-    }
+    const existingIds = new Set((existing || []).map((p) => p.id));
+    const keptIds = new Set<string>();
 
-    const rows = prizes.map(
-      (
-        p: {
-          title: string;
-          probability: number;
-          daily_limit: number | null;
-          is_active: boolean;
-          sort_order: number;
-        },
-        i: number
-      ) => ({
-        business_id: business.id,
-        title: { es: String(p.title || '').trim() },
+    for (let i = 0; i < prizes.length; i++) {
+      const p = prizes[i];
+      const title = String(p.title || '').trim();
+      if (!title) continue;
+
+      const payload = {
+        title: { es: title },
         description: { es: '' },
         probability: Number(p.probability) || 0,
         daily_limit: p.daily_limit == null ? null : Number(p.daily_limit),
         is_active: p.is_active !== false,
         sort_order: p.sort_order ?? i,
-      })
-    );
+      };
 
-    const { error: insError } = await admin.from('roulette_prizes').insert(rows);
-    if (insError) {
-      return NextResponse.json({ error: insError.message }, { status: 400 });
+      if (p.id && existingIds.has(p.id)) {
+        const { error } = await admin
+          .from('roulette_prizes')
+          .update(payload)
+          .eq('id', p.id)
+          .eq('business_id', business.id);
+        if (error) {
+          return NextResponse.json({ error: error.message }, { status: 400 });
+        }
+        keptIds.add(p.id);
+      } else {
+        const { data: created, error } = await admin
+          .from('roulette_prizes')
+          .insert({
+            business_id: business.id,
+            ...payload,
+          })
+          .select('id')
+          .single();
+        if (error) {
+          return NextResponse.json({ error: error.message }, { status: 400 });
+        }
+        if (created?.id) keptIds.add(created.id);
+      }
+    }
+
+    // Desactivar los que ya no están en el editor (no borrar: respeta prize_codes)
+    const toDisable = [...existingIds].filter((id) => !keptIds.has(id));
+    if (toDisable.length > 0) {
+      await admin
+        .from('roulette_prizes')
+        .update({ is_active: false })
+        .eq('business_id', business.id)
+        .in('id', toDisable);
     }
 
     return NextResponse.json({ success: true });

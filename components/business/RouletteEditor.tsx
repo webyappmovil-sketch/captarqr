@@ -80,11 +80,13 @@ export default function RouletteEditor({
     setError('');
     setMessage('');
 
-    const cleaned = rows
+        const cleaned = rows
       .map((r, i) => ({
-        ...r,
+        id: r.id,
         title: r.title.trim(),
         probability: Number(r.probability) || 0,
+        daily_limit: r.daily_limit,
+        is_active: r.is_active,
         sort_order: i,
       }))
       .filter((r) => r.title.length > 0);
