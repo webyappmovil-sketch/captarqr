@@ -46,21 +46,49 @@ export async function POST(request: Request) {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // ¿Ya participó este teléfono en este negocio?
-    const { data: previousList } = await supabase
+        // Config de frecuencia
+    const { data: cfg } = await supabase
+      .from('roulette_configs')
+      .select('play_frequency')
+      .eq('business_id', business_id)
+      .maybeSingle();
+
+    const frequency = cfg?.play_frequency || 'once';
+
+    let since: string | null = null;
+    const now = new Date();
+    if (frequency === 'day') {
+      since = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    } else if (frequency === 'week') {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 7);
+      since = d.toISOString();
+    } else if (frequency === 'month') {
+      const d = new Date(now);
+      d.setMonth(d.getMonth() - 1);
+      since = d.toISOString();
+    }
+
+    let partQuery = supabase
       .from('participations')
       .select('id')
       .eq('business_id', business_id)
       .in('phone', [whatsapp_full, whatsapp_number, digits])
       .limit(1);
 
-    if (previousList && previousList.length > 0) {
-      return NextResponse.json(
-        { error: 'Ya has participado con este número. Solo se permite una vez.' },
-        { status: 403 }
-      );
+    if (since) {
+      partQuery = partQuery.gte('created_at', since);
     }
 
+    const { data: previousList } = await partQuery;
+
+    if (previousList && previousList.length > 0) {
+      const msg =
+        frequency === 'once'
+          ? 'Ya has participado con este número. Solo se permite una vez.'
+          : 'Ya has participado recientemente con este número. Inténtalo más adelante.';
+      return NextResponse.json({ error: msg }, { status: 403 });
+    }
     const { data: existingLeads } = await supabase
       .from('leads')
       .select('id')
