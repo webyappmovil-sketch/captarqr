@@ -16,6 +16,57 @@ const COLORS = [
   '#14b8a6',
 ];
 
+/** Solo móviles WhatsApp: España + Latinoamérica (desde México) */
+function validateMobileWhatsApp(raw: string): string | null {
+  const digits = raw.replace(/\D/g, '');
+
+  // España: 34 + 9 dígitos empezando por 6 o 7
+  if (digits.startsWith('34') && digits.length === 11) {
+    const local = digits.slice(2);
+    if (/^[67]\d{8}$/.test(local)) return null;
+    return 'En España solo se admiten móviles (6xx/7xx), no fijos';
+  }
+  if (digits.length === 9 && /^[67]\d{8}$/.test(digits)) return null;
+
+  // México: 52 + 10 dígitos, o 10 dígitos locales
+  if (digits.startsWith('52') && digits.length === 12) return null;
+  if (digits.length === 10 && /^[1-9]\d{9}$/.test(digits)) return null;
+
+  // Colombia: 57 + 10 dígitos (3xx…)
+  if (digits.startsWith('57') && digits.length === 12 && digits[2] === '3') return null;
+  if (digits.length === 10 && /^3\d{9}$/.test(digits)) return null;
+
+  // Argentina: 54 + 10/11 dígitos
+  if (digits.startsWith('54') && (digits.length === 12 || digits.length === 13)) return null;
+
+  // Chile: 56 + 9 dígitos (9…)
+  if (digits.startsWith('56') && digits.length === 11 && digits[2] === '9') return null;
+  if (digits.length === 9 && /^9\d{8}$/.test(digits)) return null;
+
+  // Perú: 51 + 9 dígitos (9…)
+  if (digits.startsWith('51') && digits.length === 11 && digits[2] === '9') return null;
+
+  // Ecuador: 593 + 9 dígitos (9…)
+  if (digits.startsWith('593') && digits.length === 12 && digits[3] === '9') return null;
+
+  // Venezuela: 58 + 10 dígitos
+  if (digits.startsWith('58') && digits.length === 12) return null;
+
+  // Uruguay: 598 + 8 dígitos
+  if (digits.startsWith('598') && digits.length === 11) return null;
+
+  // Paraguay: 595 + 9 dígitos
+  if (digits.startsWith('595') && digits.length === 12) return null;
+
+  // Bolivia: 591 + 8 dígitos
+  if (digits.startsWith('591') && digits.length === 11) return null;
+
+  // Centroamérica básica (502 GT, 503 SV, 504 HN, 505 NI, 506 CR, 507 PA)
+  if (/^50[2-7]\d{8}$/.test(digits)) return null;
+
+  return 'Introduce un móvil WhatsApp de España o Latinoamérica (no números fijos)';
+}
+
 export default function PublicCaptureFlow({
   slug,
   qrId,
@@ -41,10 +92,9 @@ export default function PublicCaptureFlow({
   const [form, setForm] = useState({ full_name: '', email: '', phone: '' });
 
   const segments = useMemo(() => {
-    if (prizes.length === 0) {
-      return [{ name: 'Sin premios', color: '#94a3b8' }];
-    }
+    if (prizes.length === 0) return [{ id: '', name: 'Sin premios', color: '#94a3b8' }];
     return prizes.map((p, i) => ({
+      id: p.id,
       name: p.name,
       color: COLORS[i % COLORS.length],
     }));
@@ -66,6 +116,14 @@ export default function PublicCaptureFlow({
     e.preventDefault();
     setLoading(true);
     setError('');
+
+    const phoneError = validateMobileWhatsApp(form.phone);
+    if (phoneError) {
+      setError(phoneError);
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch('/api/public/leads', {
         method: 'POST',
@@ -102,9 +160,22 @@ export default function PublicCaptureFlow({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error al girar');
 
-      const extraTurns = 5 + Math.floor(Math.random() * 3);
-      const finalAngle = extraTurns * 360 + Math.floor(Math.random() * 360);
-      setRotation((prev) => prev + finalAngle);
+      // Ángulo del segmento ganador (centro del sector)
+      const idx = Math.max(
+        0,
+        segments.findIndex(
+          (s) =>
+            s.name.toLowerCase() === String(data.prize_name || '').toLowerCase()
+        )
+      );
+      const segmentAngle = 360 / segments.length;
+      const targetCenter = idx * segmentAngle + segmentAngle / 2;
+      // El puntero está arriba (0°). Giramos para que el centro del premio quede arriba.
+      const finalMod = (360 - targetCenter + 360) % 360;
+      const extraTurns = 5 + Math.floor(Math.random() * 2);
+      const currentMod = rotation % 360;
+      const delta = (extraTurns * 360) + ((finalMod - currentMod + 360) % 360);
+      setRotation((prev) => prev + delta);
 
       await new Promise((r) => setTimeout(r, 4200));
       setResult({ prize_name: data.prize_name, code: data.code });
@@ -155,10 +226,7 @@ export default function PublicCaptureFlow({
                 >
                   <span
                     className="text-[10px] sm:text-xs font-bold text-white text-center leading-tight drop-shadow"
-                    style={{
-                      transform: 'translateY(-78px)',
-                      width: 70,
-                    }}
+                    style={{ transform: 'translateY(-78px)', width: 70 }}
                   >
                     {s.name}
                   </span>
@@ -176,9 +244,7 @@ export default function PublicCaptureFlow({
             <p className="text-gray-800 font-semibold">
               ¿Quieres jugar a la ruleta y ganar premios?
             </p>
-            <p className="text-gray-500 text-sm">
-              Rellena tus datos y participa.
-            </p>
+            <p className="text-gray-500 text-sm">Rellena tus datos y participa.</p>
             <button
               type="button"
               onClick={() => setStep('form')}
@@ -210,15 +276,17 @@ export default function PublicCaptureFlow({
             />
             <input
               required
-              placeholder="WhatsApp / Teléfono"
+              inputMode="tel"
+              placeholder="Móvil WhatsApp (ej. 612345678)"
               value={form.phone}
               onChange={(e) => update('phone', e.target.value)}
               className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-gray-900"
             />
+            <p className="text-xs text-gray-400">
+              Solo móviles WhatsApp de España o Latinoamérica (no fijos)
+            </p>
             {error && (
-              <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">
-                {error}
-              </p>
+              <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">{error}</p>
             )}
             <button
               type="submit"
@@ -234,9 +302,7 @@ export default function PublicCaptureFlow({
           <div className="text-center space-y-3">
             <p className="text-gray-700 text-sm">¡Listo! Gira la ruleta</p>
             {error && (
-              <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">
-                {error}
-              </p>
+              <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">{error}</p>
             )}
             <button
               type="button"
@@ -253,18 +319,13 @@ export default function PublicCaptureFlow({
           <div className="space-y-4">
             <div className="text-center">
               <p className="text-gray-500 text-sm">Has obtenido</p>
-              <p className="text-xl font-bold text-[#16a34a] mt-1">
-                {result.prize_name}
-              </p>
+              <p className="text-xl font-bold text-[#16a34a] mt-1">{result.prize_name}</p>
               {result.code && (
                 <p className="text-sm text-gray-700 mt-2">
-                  Código:{' '}
-                  <span className="font-mono font-semibold">{result.code}</span>
+                  Código: <span className="font-mono font-semibold">{result.code}</span>
                 </p>
               )}
-              <p className="text-xs text-gray-400 mt-2">
-                Muéstralo en el local para canjearlo
-              </p>
+              <p className="text-xs text-gray-400 mt-2">Muéstralo en el local para canjearlo</p>
             </div>
 
             <div className="border-t border-gray-100 pt-4">
@@ -295,9 +356,7 @@ export default function PublicCaptureFlow({
         )}
       </div>
 
-      <p className="text-center text-xs text-gray-400 mt-4">
-        CAPTARQR · Captación inteligente
-      </p>
+      <p className="text-center text-xs text-gray-400 mt-4">CAPTARQR · Captación inteligente</p>
     </div>
   );
 }

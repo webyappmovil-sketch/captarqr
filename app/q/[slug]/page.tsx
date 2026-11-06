@@ -66,19 +66,22 @@ export default async function PublicQrPage({
     probability: Number(p.probability || 0),
   }));
 
-  const { data: linksRaw } = await supabase
+    const { data: linksRaw } = await supabase
     .from('links')
-    .select('title, url, is_active, sort_order, type')
+    .select('title, url, is_active, sort_order, type, qr_id')
     .eq('business_id', qr.business_id)
     .eq('is_active', true)
     .order('sort_order', { ascending: true });
 
   const links = (linksRaw || [])
     .filter((l) => l.url)
+    .filter((l) => !l.qr_id || l.qr_id === qr.id) // de este QR o globales
     .map((l) => ({
       label: linkTitle(l.title),
       url: l.url as string,
     }));
+
+  
 
   return (
     <div className="min-h-screen bg-[#f0f7f2] flex items-center justify-center p-4">
