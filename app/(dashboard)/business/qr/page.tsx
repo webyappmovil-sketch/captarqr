@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import DeleteQrButton from '@/components/business/DeleteQrButton';
+import QrCard from '@/components/business/QrCard';
 
 export default async function BusinessQrPage() {
   const supabase = await createClient();
@@ -33,7 +33,7 @@ export default async function BusinessQrPage() {
         <div>
           <h2 className="text-2xl font-bold text-white">Códigos QR</h2>
           <p className="text-gray-400 text-sm">
-            Crea y gestiona los QR de captación de tu negocio
+            Descarga e imprime tus QR de captación · {business?.name}
           </p>
         </div>
         <Link
@@ -44,53 +44,22 @@ export default async function BusinessQrPage() {
         </Link>
       </div>
 
-      {!business ? (
-        <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-8 text-center text-gray-400">
-          No se encontró un negocio asociado a tu cuenta.
-        </div>
-      ) : !qrs || qrs.length === 0 ? (
+      {!qrs || qrs.length === 0 ? (
         <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-8 text-center text-gray-400">
           Aún no tienes códigos QR. Crea el primero.
         </div>
       ) : (
-        <div className="bg-gray-900/50 border border-gray-800 rounded-xl divide-y divide-gray-800">
-          {qrs.map((qr) => {
-            const publicUrl = `${appUrl}/q/${qr.slug}`;
-            return (
-              <div
-                key={qr.id}
-                className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-5 py-4"
-              >
-                <div>
-                  <p className="text-white font-medium">{qr.name}</p>
-                  <p className="text-gray-500 text-sm break-all">{publicUrl}</p>
-                  <p className="text-gray-600 text-xs mt-1">
-                    Escaneos: {qr.scan_count ?? 0}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <a
-                    href={publicUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-sm text-[#25D366] hover:underline"
-                  >
-                    Abrir
-                  </a>
-                  <span
-                    className={`text-xs px-2.5 py-1 rounded-full ${
-                      qr.is_active
-                        ? 'bg-green-500/15 text-green-400'
-                        : 'bg-gray-500/15 text-gray-400'
-                    }`}
-                  >
-                    {qr.is_active ? 'Activo' : 'Inactivo'}
-                  </span>
-                  <DeleteQrButton id={qr.id} />
-                </div>
-              </div>
-            );
-          })}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {qrs.map((qr) => (
+            <QrCard
+              key={qr.id}
+              id={qr.id}
+              name={qr.name}
+              publicUrl={`${appUrl}/q/${qr.slug}`}
+              scanCount={qr.scan_count ?? 0}
+              isActive={!!qr.is_active}
+            />
+          ))}
         </div>
       )}
     </div>

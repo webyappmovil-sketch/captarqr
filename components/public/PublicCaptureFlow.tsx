@@ -103,11 +103,42 @@ export default function PublicCaptureFlow({
       return;
     }
 
-    const phoneError = validateMobileWhatsApp(form.phone);
-    if (phoneError) {
-      setError(phoneError);
-      setLoading(false);
-      return;
+    const phoneError = 
+function validateMobileWhatsApp(raw: string): string | null {
+  const digits = raw.replace(/\D/g, '');
+
+  // España: 9 dígitos 6/7… o 34 + 9 dígitos 6/7…
+  if (digits.length === 9 && /^[67]\d{8}$/.test(digits)) return null;
+  if (digits.startsWith('34') && digits.length === 11 && /^34[67]\d{8}$/.test(digits))
+    return null;
+
+  // México 52 + 10 dígitos
+  if (digits.startsWith('52') && digits.length === 12) return null;
+
+  // Colombia 57 + 10 dígitos (móvil 3…)
+  if (digits.startsWith('57') && digits.length === 12 && digits[2] === '3') return null;
+
+  // Argentina 54 + 10/11
+  if (digits.startsWith('54') && (digits.length === 12 || digits.length === 13)) return null;
+
+  // Chile 56 + 9 (9…)
+  if (digits.startsWith('56') && digits.length === 11 && digits[2] === '9') return null;
+
+  // Perú 51 + 9 (9…)
+  if (digits.startsWith('51') && digits.length === 11 && digits[2] === '9') return null;
+
+  // Ecuador 593 + 9 (9…)
+  if (digits.startsWith('593') && digits.length === 12 && digits[3] === '9') return null;
+
+  // Venezuela, Uruguay, Paraguay, Bolivia, Centroamérica
+  if (digits.startsWith('58') && digits.length === 12) return null;
+  if (digits.startsWith('598') && digits.length === 11) return null;
+  if (digits.startsWith('595') && digits.length === 12) return null;
+  if (digits.startsWith('591') && digits.length === 11) return null;
+  if (/^50[2-7]\d{8}$/.test(digits)) return null;
+
+  return 'WhatsApp no válido. España: 6XX/7XX. Latinoamérica: con prefijo (52, 57, 54…). Se comprobará antes de canjear el premio.';
+}
     }
 
     try {
@@ -248,7 +279,10 @@ export default function PublicCaptureFlow({
               required
               placeholder="Nombre"
               value={form.full_name}
-              onChange={(e) => update('full_name', e.target.value)}
+              onChange={(e) => {
+  setPrivacy(e.target.checked);
+  setError('');
+}}
               className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-gray-900"
             />
             <input
@@ -353,7 +387,9 @@ export default function PublicCaptureFlow({
         )}
       </div>
 
-      <p className="text-center text-xs text-gray-400 mt-4">CAPTARQR · Captación inteligente</p>
+      <p className="text-xs text-gray-500">
+  Solo WhatsApp válidos (España 6xx/7xx o LatAm con prefijo). Se comprobará antes de canjear tu premio.
+</p>
     </div>
   );
 }
