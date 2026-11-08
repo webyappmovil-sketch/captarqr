@@ -9,17 +9,25 @@ export default async function BusinessSettingsPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const { data: business } = await supabase
+  const { data: business, error } = await supabase
     .from('businesses')
-    .select('id, name, email, phone, city, country_code, is_active')
+    .select('id, name, email, phone, city, country_code')
     .eq('owner_profile_id', user.id)
     .limit(1)
     .maybeSingle();
 
+  if (error) {
+    return (
+      <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6 text-red-300 text-sm">
+        Error al cargar negocio: {error.message}
+      </div>
+    );
+  }
+
   if (!business) {
     return (
       <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-8 text-center text-gray-400">
-        No hay negocio asociado a tu cuenta.
+        No hay negocio asociado a tu cuenta (owner_profile_id).
       </div>
     );
   }

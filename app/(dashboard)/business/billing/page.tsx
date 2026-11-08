@@ -10,13 +10,17 @@ export default async function BusinessBillingPage() {
 
   const { data: business } = await supabase
     .from('businesses')
-    .select('id, name, plan_id, is_active, created_at')
+    .select('id, name, plan_id, status')
     .eq('owner_profile_id', user.id)
     .limit(1)
     .maybeSingle();
 
   if (!business) {
-    return <div className="text-gray-400">Sin negocio.</div>;
+    return (
+      <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-8 text-center text-gray-400">
+        No se encontró el negocio (revisa owner_profile_id).
+      </div>
+    );
   }
 
   const { count: qrCount } = await supabase
@@ -29,7 +33,6 @@ export default async function BusinessBillingPage() {
     .select('id', { count: 'exact', head: true })
     .eq('business_id', business.id);
 
-  // Planes orientativos CAPTARQR
   const plans = [
     {
       id: 'basic',
@@ -67,8 +70,7 @@ export default async function BusinessBillingPage() {
       <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
         <p className="text-gray-400 text-sm">Estado del negocio</p>
         <p className="text-white font-semibold mt-1">
-          {business.is_active ? 'Activo' : 'Inactivo'} · Plan ID:{' '}
-          {business.plan_id || 'sin asignar'}
+          Estado: {business.status || '—'} · Plan: {business.plan_id || 'sin asignar'}
         </p>
         <p className="text-gray-500 text-sm mt-2">
           Uso actual: {qrCount ?? 0} QR · {linksCount ?? 0} enlaces
@@ -97,11 +99,6 @@ export default async function BusinessBillingPage() {
           </div>
         ))}
       </div>
-
-      <p className="text-xs text-gray-500">
-        La integración con Stripe / Revolut se activará en la fase de pagos. Por ahora puedes
-        operar en modo prueba sin límite estricto.
-      </p>
     </div>
   );
 }
