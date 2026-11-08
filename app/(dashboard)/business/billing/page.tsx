@@ -18,7 +18,7 @@ const PLANS = [
       'Estadísticas por fecha y hora',
     ],
     limits: '1 QR · 1 destino a elegir',
-    checkout: 'https://checkout.revolut.com/pay/49115550-10f6-4e7b-8e36-74408997ae9',
+    checkout: 'https://checkout.revolut.com/pay/49115550-10f6-4e7b-8e36-74408997ae9e',
   },
   {
     id: 'business',
