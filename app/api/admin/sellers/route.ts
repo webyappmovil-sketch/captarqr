@@ -1,102 +1,67 @@
-import { createClient } from '@/lib/supabase/server';
-import { redirect } from 'next/navigation';
-import Link from 'next/link';
+import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { createClient as createServerClient } from '@/lib/supabase/server';
 
-export default async function PartnerSellersPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect('/login');
+export async function POST(request: Request) {
+  try {
+    const body = await request.json();
+    const { partner_id, email, password, full_name, commission_rate } = body;
 
-  const { data: partner } = await supabase
-    .from('partners')
-    .select('id, name, slug')
-    .eq('id', id)
-    .maybeSingle();
+    if (!partner_id || !email || !password) {
+      return NextResponse.json({ error: 'Faltan datos' }, { status: 400 });
+    }
 
-  const { data: sellers, error } = await supabase
-    .from('sellers')
-    .select('id, partner_id, profile_id, commission_rate, is_active, created_at')
-    .eq('partner_id', id)
-    .is('deleted_at', null)
-    .order('created_at', { ascending: false });
+    const supabase = await createServerClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+    }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://captarqr.vercel.app';
+    const admin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
 
-  return (
-    <div>
-      <Link href="/admin/partners" className="text-sm text-gray-400 hover:text-white">
-        ← Partners
-      </Link>
+    const { data: created, error: authError } = await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { full_name, role: 'seller' },
+    });
 
-      <div className="flex items-center justify-between gap-4 flex-wrap mt-2 mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-white">
-            Vendedores · {partner?.name || 'Partner'}
-          </h2>
-          <p className="text-gray-400 text-sm">
-            Link partner:{' '}
-            <code className="text-[#25D366]">
-              {appUrl}/r/{partner?.slug}
-            </code>
-          </p>
-        </div>
-        <Link
-          href={`/admin/partners/${id}/sellers/new`}
-          className="bg-[#25D366] text-black font-semibold text-sm px-4 py-2 rounded-lg"
-        >
-          + Nuevo vendedor
-        </Link>
-      </div>
+    if (authError || !created.user) {
+      return NextResponse.json(
+        { error: authError?.message || 'No se pudo crear el usuario' },
+        { status: 400 }
+      );
+    }
 
-      {error && (
-        <p className="text-red-300 text-sm mb-4">{error.message}</p>
-      )}
+    const profileId = created.user.id;
 
-      {!sellers || sellers.length === 0 ? (
-        <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-8 text-center text-gray-400">
-          Aún no hay vendedores. Crea el primero.
-        </div>
-      ) : (
-        <div className="bg-gray-900/50 border border-gray-800 rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-gray-500 border-b border-gray-800">
-                <th className="px-4 py-3">Profile ID</th>
-                <th className="px-4 py-3">Comisión</th>
-                <th className="px-4 py-3">Estado</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-800">
-              {sellers.map((s) => (
-                <tr key={s.id}>
-                  <td className="px-4 py-3 font-mono text-xs text-gray-300">
-                    {s.profile_id}
-                  </td>
-                  <td className="px-4 py-3 text-gray-300">{s.commission_rate}%</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={`text-xs px-2 py-1 rounded-full ${
-                        s.is_active
-                          ? 'bg-green-500/15 text-green-400'
-                          : 'bg-gray-500/15 text-gray-400'
-                      }`}
-                    >
-                      {s.is_active ? 'activo' : 'inactivo'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
-  );
+    await admin.from('profiles').upsert({
+      id: profileId,
+      email,
+      full_name: full_name || email,
+      role: 'seller',
+    });
+
+    const { error: sellerError } = await admin.from('sellers').insert({
+      partner_id,
+      profile_id: profileId,
+      commission_rate: Number(commission_rate) || 10,
+      is_active: true,
+    });
+
+    if (sellerError) {
+      return NextResponse.json({ error: sellerError.message }, { status: 400 });
+    }
+
+    return NextResponse.json({ success: true, profile_id: profileId });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Error interno';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
