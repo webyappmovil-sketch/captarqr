@@ -24,10 +24,9 @@ export default async function AdminLicensesPage() {
     .order('name', { ascending: true })
     .limit(200);
 
-  const { data: plans } = await supabase
+    const { data: plans } = await supabase
     .from('plans')
-    .select('id, code, name, price_monthly')
-    .eq('is_active', true)
+    .select('id, code, name, price_monthly, is_active')
     .order('price_monthly', { ascending: true });
 
   const planMap = new Map((plans || []).map((p) => [p.id, p]));
