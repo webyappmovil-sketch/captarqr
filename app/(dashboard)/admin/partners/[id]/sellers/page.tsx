@@ -47,17 +47,15 @@ export default async function PartnerSellersPage({
             </code>
           </p>
         </div>
-        <Link
+        <a
           href={`/admin/partners/${id}/sellers/new`}
           className="bg-[#25D366] text-black font-semibold text-sm px-4 py-2 rounded-lg"
         >
           + Nuevo vendedor
-        </Link>
+        </a>
       </div>
 
-      {error && (
-        <p className="text-red-300 text-sm mb-4">{error.message}</p>
-      )}
+      {error && <p className="text-red-300 text-sm mb-4">{error.message}</p>}
 
       {!sellers || sellers.length === 0 ? (
         <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-8 text-center text-gray-400">
