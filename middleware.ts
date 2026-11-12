@@ -33,11 +33,18 @@ export async function middleware(request: NextRequest) {
     pathname === '/' ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/register') ||
+  if (
+    pathname === '/' ||
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/register') ||
+    pathname.startsWith('/forgot-password') ||
+    pathname.startsWith('/reset-password') ||
+    pathname.startsWith('/auth') ||
     pathname.startsWith('/q/') ||
-    pathname.startsWith('/auth/')
+    pathname.startsWith('/r/')
   ) {
     return response;
-  }
+  }    
 
   if (!user) {
     const url = request.nextUrl.clone();

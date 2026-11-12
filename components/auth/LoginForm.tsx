@@ -104,7 +104,11 @@ export default function LoginForm() {
           placeholder="••••••••"
         />
       </div>
-
+      <p className="text-right text-sm">
+        <a href="/forgot-password" className="text-[#25D366] hover:underline">
+          ¿Olvidaste tu contraseña?
+        </a>
+      </p>
       <button
         type="submit"
         disabled={loading}

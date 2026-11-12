@@ -16,6 +16,7 @@ export default function RegisterForm() {
     business_name: '',
     email: '',
     password: '',
+    confirmPassword: '',    
     phone: '',
   });
 
@@ -25,7 +26,11 @@ export default function RegisterForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setLoading(true);
+    if (form.password !== form.confirmPassword) {
+      setError('Las contraseñas no coinciden');
+      return;
+    }    
+setLoading(true);
     setError('');
 
     try {
@@ -122,7 +127,30 @@ export default function RegisterForm() {
           className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white focus:ring-2 focus:ring-[#25D366] outline-none"
         />
       </div>
-
+      <div>
+        <label className="block text-sm text-gray-300 mb-1">Repetir contraseña</label>
+        <input
+          required
+          type="password"
+          minLength={6}
+          value={form.confirmPassword}
+          onChange={(e) => update('confirmPassword', e.target.value)}
+          className="w-full px-4 py-2.5 bg-gray-800 border border-gray-700 rounded-lg text-white"
+        />
+        {form.confirmPassword?.length > 0 && (
+          <p
+            className={`text-xs mt-1 ${
+              form.password === form.confirmPassword
+                ? 'text-green-400'
+                : 'text-red-400'
+            }`}
+          >
+            {form.password === form.confirmPassword
+              ? 'Las claves coinciden'
+              : 'No coinciden'}
+          </p>
+        )}
+      </div>
       <button
         type="submit"
         disabled={loading}
